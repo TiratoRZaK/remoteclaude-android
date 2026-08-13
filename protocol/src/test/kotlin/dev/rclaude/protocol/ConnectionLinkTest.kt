@@ -92,7 +92,7 @@ class ConnectionLinkTest {
     fun `чужая схема — ошибка`() {
         val error = ConnectionLink.parse("ftp://10.0.0.2:7777/").exceptionOrNull()
 
-        assertEquals("нужна ссылка http:// или https://", error.message)
+        assertEquals("нужна ссылка http:// или https://", error?.message)
     }
 
     @Test
