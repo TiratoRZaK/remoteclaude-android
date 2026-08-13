@@ -1,8 +1,6 @@
 package dev.rclaude.protocol
 
 import java.net.URI
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 
 /** Адрес сервера remoteclaude: схема, хост и порт. */
 data class ServerAddress(val scheme: String, val host: String, val port: Int) {
@@ -66,10 +64,6 @@ data class ConnectionLink(val address: ServerAddress, val token: String?) {
             return null
         }
 
-        private fun decode(value: String): String = try {
-            URLDecoder.decode(value, StandardCharsets.UTF_8)
-        } catch (e: IllegalArgumentException) {
-            value
-        }
+        private fun decode(value: String): String = UrlCoding.decode(value)
     }
 }

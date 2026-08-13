@@ -1,8 +1,7 @@
 package dev.rclaude.protocol.net
 
 import dev.rclaude.protocol.ServerAddress
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
+import dev.rclaude.protocol.UrlCoding
 
 /** Адреса точек входа сервера remoteclaude. */
 object ServerEndpoints {
@@ -17,5 +16,5 @@ object ServerEndpoints {
     fun sessionSocket(address: ServerAddress, sessionId: String, token: String): String =
         "${address.wsBase}/ws?session=${encode(sessionId)}&token=${encode(token)}"
 
-    private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
+    private fun encode(value: String): String = UrlCoding.encode(value)
 }

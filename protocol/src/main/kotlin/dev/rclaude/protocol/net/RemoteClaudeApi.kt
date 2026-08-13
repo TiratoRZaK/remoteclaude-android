@@ -4,13 +4,12 @@ import dev.rclaude.protocol.ProtocolJson
 import dev.rclaude.protocol.ServerAddress
 import dev.rclaude.protocol.ServerHealth
 import dev.rclaude.protocol.SessionInfo
+import dev.rclaude.protocol.UrlCoding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
 /** Ошибка обращения к серверу remoteclaude с текстом для показа пользователю. */
@@ -64,7 +63,7 @@ class RemoteClaudeApi(private val client: OkHttpClient = defaultClient()) {
 
     private fun withTokenParameter(url: String, token: String): String {
         val separator = if (url.contains('?')) '&' else '?'
-        return url + separator + "token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
+        return url + separator + "token=" + UrlCoding.encode(token)
     }
 
     companion object {
