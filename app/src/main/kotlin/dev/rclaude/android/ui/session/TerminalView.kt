@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
 import androidx.compose.ui.platform.LocalDensity
+import dev.rclaude.android.ui.theme.LocalTerminalSkin
+import dev.rclaude.android.ui.theme.TerminalSkin
 import dev.rclaude.protocol.term.TerminalLine
 import dev.rclaude.protocol.term.TerminalSnapshot
 
@@ -57,10 +59,11 @@ fun TerminalView(
 ) {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
+    val skin = LocalTerminalSkin.current
 
-    BoxWithConstraints(modifier = modifier.background(TerminalPalette.Background)) {
-        val metrics = remember(maxWidth, maxHeight, snapshot.cols, density) {
-            measureMetrics(measurer, density, maxWidth, maxHeight, snapshot.cols)
+    BoxWithConstraints(modifier = modifier.background(skin.background)) {
+        val metrics = remember(maxWidth, maxHeight, snapshot.cols, density, skin.fontFamily) {
+            measureMetrics(measurer, density, maxWidth, maxHeight, snapshot.cols, skin.fontFamily)
         }
         LaunchedEffect(metrics.viewportCols, metrics.viewportRows) {
             onViewportMeasured(metrics.viewportCols, metrics.viewportRows)
@@ -80,7 +83,7 @@ fun TerminalView(
         }
 
         val style = TextStyle(
-            fontFamily = FontFamily.Monospace,
+            fontFamily = skin.fontFamily,
             fontSize = metrics.fontSize,
             lineHeight = metrics.lineHeight,
         )
@@ -91,9 +94,9 @@ fun TerminalView(
         ) {
             items(count = snapshot.lines.size) { index ->
                 Text(
-                    text = snapshot.lines[index].toAnnotated(),
+                    text = snapshot.lines[index].toAnnotated(skin),
                     style = style,
-                    color = TerminalPalette.Foreground,
+                    color = skin.foreground,
                     softWrap = false,
                     maxLines = 1,
                 )
@@ -102,13 +105,13 @@ fun TerminalView(
     }
 }
 
-private fun TerminalLine.toAnnotated(): AnnotatedString = buildAnnotatedString {
+private fun TerminalLine.toAnnotated(skin: TerminalSkin): AnnotatedString = buildAnnotatedString {
     for (run in runs) {
-        val (foreground, background) = TerminalPalette.resolve(run.style)
+        val (foreground, background) = skin.resolve(run.style)
         withStyle(
             SpanStyle(
                 color = foreground,
-                background = if (background == TerminalPalette.Background) Color.Unspecified else background,
+                background = if (background == skin.background) Color.Unspecified else background,
                 fontWeight = if (run.style.bold) FontWeight.Bold else null,
                 fontStyle = if (run.style.italic) FontStyle.Italic else null,
                 textDecoration = if (run.style.underline) TextDecoration.Underline else null,
@@ -125,11 +128,12 @@ private fun measureMetrics(
     maxWidth: Dp,
     maxHeight: Dp,
     cols: Int,
+    fontFamily: FontFamily,
 ): TerminalMetrics {
     val probeSize = 14f
     val probe = measurer.measure(
         text = AnnotatedString(PROBE_TEXT),
-        style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = probeSize.sp),
+        style = TextStyle(fontFamily = fontFamily, fontSize = probeSize.sp),
     )
     val charWidthPx = probe.size.width.toFloat() / PROBE_TEXT.length
     val lineHeightPx = probe.size.height.toFloat()

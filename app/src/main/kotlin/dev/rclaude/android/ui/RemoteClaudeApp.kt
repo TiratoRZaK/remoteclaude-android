@@ -22,6 +22,8 @@ import androidx.navigation.navArgument
 import dev.rclaude.android.di.AppContainer
 import dev.rclaude.android.ui.connect.ConnectScreen
 import dev.rclaude.android.ui.connect.ConnectViewModel
+import dev.rclaude.android.ui.settings.SettingsScreen
+import dev.rclaude.android.ui.settings.SettingsViewModel
 import dev.rclaude.android.ui.session.SessionScreen
 import dev.rclaude.android.ui.session.SessionViewModel
 import dev.rclaude.android.ui.sessions.SessionsScreen
@@ -30,6 +32,7 @@ import dev.rclaude.android.ui.sessions.SessionsViewModel
 private object Routes {
     const val CONNECT = "connect"
     const val SESSIONS = "sessions"
+    const val SETTINGS = "settings"
     const val SESSION = "session/{id}"
 
     fun session(id: String): String = "session/$id"
@@ -89,7 +92,21 @@ fun RemoteClaudeApp(container: AppContainer) {
                 state = viewModel.state,
                 onRefresh = viewModel::refresh,
                 onOpen = { session -> navController.navigate(Routes.session(session.id)) },
-                onSettings = { navController.navigate(Routes.CONNECT) },
+                onSettings = { navController.navigate(Routes.SETTINGS) },
+            )
+        }
+
+        composable(Routes.SETTINGS) {
+            val viewModel: SettingsViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer { SettingsViewModel(container.settings) }
+                },
+            )
+            SettingsScreen(
+                state = viewModel.state,
+                onPickStyle = viewModel::choose,
+                onEditConnection = { navController.navigate(Routes.CONNECT) },
+                onBack = { navController.popBackStack() },
             )
         }
 

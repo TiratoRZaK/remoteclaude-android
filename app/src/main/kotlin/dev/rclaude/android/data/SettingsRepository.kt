@@ -24,8 +24,16 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     /** Поток сохранённого подключения; `null` — подключение ещё не настроено. */
     val connection: Flow<StoredConnection?> = store.data.map(::read)
 
+    /** Идентификатор выбранного оформления; `null` — оформление не выбирали. */
+    val styleId: Flow<String?> = store.data.map { preferences -> preferences[STYLE] }
+
     /** Текущее сохранённое подключение. */
     suspend fun current(): StoredConnection? = read(store.data.first())
+
+    /** Запоминает выбранное оформление. */
+    suspend fun saveStyle(id: String) {
+        store.edit { preferences -> preferences[STYLE] = id }
+    }
 
     /** Запоминает адрес и токен. */
     suspend fun save(address: ServerAddress, token: String) {
@@ -46,5 +54,6 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     private companion object {
         val ADDRESS = stringPreferencesKey("address")
         val TOKEN = stringPreferencesKey("token")
+        val STYLE = stringPreferencesKey("style")
     }
 }
