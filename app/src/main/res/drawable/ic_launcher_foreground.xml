@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Приглашение терминала: шеврон и подчёркивание. -->
+    <path
+        android:fillColor="#FF4FC3F7"
+        android:pathData="M40,38 L56,54 L40,70 L34,64 L44,54 L34,44 Z" />
+    <path
+        android:fillColor="#FFE6E6E6"
+        android:pathData="M58,64 L76,64 L76,70 L58,70 Z" />
+</vector>
