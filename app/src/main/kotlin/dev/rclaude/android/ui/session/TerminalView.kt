@@ -1,11 +1,15 @@
 package dev.rclaude.android.ui.session
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -15,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextMeasurer
@@ -31,30 +36,29 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Text
-import androidx.compose.ui.platform.LocalDensity
 import dev.rclaude.android.ui.theme.LocalTerminalSkin
 import dev.rclaude.android.ui.theme.TerminalSkin
 import dev.rclaude.protocol.term.TerminalLine
 import dev.rclaude.protocol.term.TerminalSnapshot
 
-/** Размеры отрисовки терминала и геометрия, которую можно запросить у сервера. */
+/** Кегль и ширина полотна терминала при текущем увеличении. */
 private data class TerminalMetrics(
     val fontSize: TextUnit,
     val lineHeight: TextUnit,
-    val viewportCols: Int,
-    val viewportRows: Int,
+    val contentWidth: Dp,
 )
 
 /**
- * Экран терминала: строки снимка эмулятора моноширинным шрифтом, кегль подобран так,
- * чтобы вся ширина сессии влезала в экран. Прокрутка следует за выводом, пока список
- * прижат к низу.
+ * Экран терминала: строки снимка эмулятора моноширинным шрифтом.
+ *
+ * При увеличении [zoom] равном единице вся ширина сессии вписана в экран, дальше
+ * строки становятся крупнее и полотно листается вбок. Размер PTY при этом не
+ * меняется — им владеет вкладка терминала на компьютере.
  */
 @Composable
 fun TerminalView(
     snapshot: TerminalSnapshot,
-    onViewportMeasured: (Int, Int) -> Unit,
+    zoom: Float,
     modifier: Modifier = Modifier,
 ) {
     val measurer = rememberTextMeasurer()
@@ -62,11 +66,9 @@ fun TerminalView(
     val skin = LocalTerminalSkin.current
 
     BoxWithConstraints(modifier = modifier.background(skin.background)) {
-        val metrics = remember(maxWidth, maxHeight, snapshot.cols, density, skin.fontFamily) {
-            measureMetrics(measurer, density, maxWidth, maxHeight, snapshot.cols, skin.fontFamily)
-        }
-        LaunchedEffect(metrics.viewportCols, metrics.viewportRows) {
-            onViewportMeasured(metrics.viewportCols, metrics.viewportRows)
+        val viewportWidth = maxWidth
+        val metrics = remember(viewportWidth, snapshot.cols, density, skin.fontFamily, zoom) {
+            measureMetrics(measurer, density, viewportWidth, snapshot.cols, skin.fontFamily, zoom)
         }
 
         val listState = rememberLazyListState()
@@ -89,7 +91,10 @@ fun TerminalView(
         )
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .horizontalScroll(rememberScrollState())
+                .width(maxOf(metrics.contentWidth, viewportWidth)),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
         ) {
             items(count = snapshot.lines.size) { index ->
@@ -125,48 +130,35 @@ private fun TerminalLine.toAnnotated(skin: TerminalSkin): AnnotatedString = buil
 private fun measureMetrics(
     measurer: TextMeasurer,
     density: Density,
-    maxWidth: Dp,
-    maxHeight: Dp,
+    viewportWidth: Dp,
     cols: Int,
     fontFamily: FontFamily,
+    zoom: Float,
 ): TerminalMetrics {
-    val probeSize = 14f
     val probe = measurer.measure(
         text = AnnotatedString(PROBE_TEXT),
-        style = TextStyle(fontFamily = fontFamily, fontSize = probeSize.sp),
+        style = TextStyle(fontFamily = fontFamily, fontSize = PROBE_SIZE.sp),
     )
-    val charWidthPx = probe.size.width.toFloat() / PROBE_TEXT.length
-    val lineHeightPx = probe.size.height.toFloat()
-    val widthPx = with(density) { maxWidth.toPx() }
-    val heightPx = with(density) { maxHeight.toPx() }
+    val probeCharWidthPx = probe.size.width.toFloat() / PROBE_TEXT.length
+    val widthPx = with(density) { viewportWidth.toPx() }
 
-    val fitted = if (charWidthPx <= 0f || cols <= 0) {
-        probeSize
+    val fitted = if (probeCharWidthPx <= 0f || cols <= 0) {
+        PROBE_SIZE
     } else {
-        (probeSize * widthPx / (charWidthPx * cols)).coerceIn(MIN_FONT_SIZE, probeSize)
+        PROBE_SIZE * widthPx / (probeCharWidthPx * cols)
     }
-    val comfortableCharWidth = charWidthPx * COMFORTABLE_FONT_SIZE / probeSize
-    val comfortableLineHeight = lineHeightPx * COMFORTABLE_FONT_SIZE / probeSize
-    val viewportCols = if (comfortableCharWidth > 0f) {
-        (widthPx / comfortableCharWidth).toInt().coerceAtLeast(MIN_COLS)
-    } else {
-        MIN_COLS
-    }
-    val viewportRows = if (comfortableLineHeight > 0f) {
-        (heightPx / comfortableLineHeight).toInt().coerceAtLeast(MIN_ROWS)
-    } else {
-        MIN_ROWS
-    }
+    val fontSize = (fitted * zoom).coerceIn(MIN_FONT_SIZE, MAX_FONT_SIZE)
+    val charWidthPx = probeCharWidthPx * fontSize / PROBE_SIZE
+    val contentWidth = with(density) { (charWidthPx * cols).toDp() }
     return TerminalMetrics(
-        fontSize = fitted.sp,
-        lineHeight = (fitted * 1.25f).sp,
-        viewportCols = viewportCols,
-        viewportRows = viewportRows,
+        fontSize = fontSize.sp,
+        lineHeight = (fontSize * LINE_HEIGHT_FACTOR).sp,
+        contentWidth = contentWidth,
     )
 }
 
 private const val PROBE_TEXT = "WWWWWWWWWWWWWWWWWWWW"
-private const val MIN_FONT_SIZE = 5.5f
-private const val COMFORTABLE_FONT_SIZE = 13f
-private const val MIN_COLS = 20
-private const val MIN_ROWS = 8
+private const val PROBE_SIZE = 14f
+private const val MIN_FONT_SIZE = 4f
+private const val MAX_FONT_SIZE = 36f
+private const val LINE_HEIGHT_FACTOR = 1.25f

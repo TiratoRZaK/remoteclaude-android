@@ -74,14 +74,6 @@ class SessionViewModel(
         connection?.send(ClientMessage.Input(sequence))
     }
 
-    /** Подгоняет размер PTY под экран телефона. */
-    fun resize(cols: Int, rows: Int) {
-        if (cols <= 0 || rows <= 0) return
-        connection?.send(ClientMessage.Resize(cols, rows))
-        commands.trySend(TerminalCommand.Resize(cols, rows))
-        _state.update { it.copy(cols = cols, rows = rows) }
-    }
-
     private suspend fun runSession() {
         val stored = settings.current()
         if (stored == null) {

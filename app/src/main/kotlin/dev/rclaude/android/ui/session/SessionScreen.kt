@@ -27,9 +27,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,9 +41,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.rclaude.protocol.TerminalKeys
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.math.roundToInt
 
 private const val TAB_CHAT = 0
 private const val TAB_TERMINAL = 1
+private const val ZOOM_STEP = 1.25f
+private const val MIN_ZOOM = 0.5f
+private const val MAX_ZOOM = 5f
 
 /** Экран сессии: чат и терминал поверх одного соединения, общий композер. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,14 +56,15 @@ fun SessionScreen(
     state: StateFlow<SessionUiState>,
     onPrompt: (String) -> Unit,
     onKey: (String) -> Unit,
-    onResize: (Int, Int) -> Unit,
     onBack: () -> Unit,
 ) {
     val ui by state.collectAsStateWithLifecycle()
     var tab by remember { mutableIntStateOf(TAB_CHAT) }
     var tabChosen by remember { mutableStateOf(false) }
-    var viewport by remember { mutableStateOf(0 to 0) }
     var prompt by remember { mutableStateOf("") }
+    // Лупа увеличивает текст только на телефоне: размер PTY остаётся за вкладкой
+    // терминала на компьютере, трогать его из приложения нельзя.
+    var zoom by rememberSaveable { mutableFloatStateOf(1f) }
 
     LaunchedEffect(ui.loaded, ui.chatAvailable) {
         if (ui.loaded && !tabChosen) {
@@ -90,12 +97,10 @@ fun SessionScreen(
                 navigationIcon = { TextButton(onClick = onBack) { Text("←") } },
                 actions = {
                     if (tab == TAB_TERMINAL) {
-                        TextButton(
-                            onClick = { onResize(viewport.first, viewport.second) },
-                            enabled = viewport.first > 0 && ui.connected,
-                        ) {
-                            Text("Под экран")
-                        }
+                        ZoomControls(
+                            zoom = zoom,
+                            onZoom = { value -> zoom = value.coerceIn(MIN_ZOOM, MAX_ZOOM) },
+                        )
                     }
                 },
             )
@@ -161,11 +166,38 @@ fun SessionScreen(
                 } else {
                     TerminalView(
                         snapshot = ui.snapshot,
-                        onViewportMeasured = { cols, rows -> viewport = cols to rows },
+                        zoom = zoom,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
             }
+        }
+    }
+}
+
+/** Лупа терминала: шаг увеличения кнопками, тап по проценту возвращает «вписано». */
+@Composable
+private fun ZoomControls(zoom: Float, onZoom: (Float) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        TextButton(
+            onClick = { onZoom(zoom / ZOOM_STEP) },
+            enabled = zoom > MIN_ZOOM,
+            contentPadding = PaddingValues(horizontal = 8.dp),
+        ) {
+            Text("−", style = MaterialTheme.typography.titleLarge)
+        }
+        TextButton(
+            onClick = { onZoom(1f) },
+            contentPadding = PaddingValues(horizontal = 4.dp),
+        ) {
+            Text("${(zoom * 100).roundToInt()}%", style = MaterialTheme.typography.labelMedium)
+        }
+        TextButton(
+            onClick = { onZoom(zoom * ZOOM_STEP) },
+            enabled = zoom < MAX_ZOOM,
+            contentPadding = PaddingValues(horizontal = 8.dp),
+        ) {
+            Text("+", style = MaterialTheme.typography.titleLarge)
         }
     }
 }
