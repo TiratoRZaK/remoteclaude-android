@@ -132,6 +132,7 @@ fun RemoteClaudeApp(container: AppContainer) {
                 state = viewModel.state,
                 onPrompt = viewModel::sendPrompt,
                 onKey = viewModel::sendKey,
+                onPaste = viewModel::sendPaste,
                 onBack = { navController.popBackStack() },
             )
         }

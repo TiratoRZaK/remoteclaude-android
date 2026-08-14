@@ -69,9 +69,16 @@ class SessionViewModel(
         connection?.send(ClientMessage.Input(TerminalKeys.bracketedPaste(text)))
     }
 
-    /** Отправляет готовую последовательность панели клавиш. */
+    /** Отправляет готовую последовательность панели клавиш или набранный текст. */
     fun sendKey(sequence: String) {
+        if (sequence.isEmpty()) return
         connection?.send(ClientMessage.Input(sequence))
+    }
+
+    /** Вставляет текст из буфера обмена в строку ввода, не отправляя его. */
+    fun sendPaste(text: String) {
+        if (text.isEmpty()) return
+        connection?.send(ClientMessage.Input(TerminalKeys.bracketedPaste(text, submit = false)))
     }
 
     private suspend fun runSession() {
