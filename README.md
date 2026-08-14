@@ -180,6 +180,7 @@ remoteclaude-android/
 │   └── src/test/      # юнит-тесты
 ├── app/               # Android: Compose UI, ViewModel'и, DataStore, навигация
 └── docs/
+    ├── context.md     # состояние проекта, решения и грабли — читать первым
     ├── specs/         # спека клиента
     └── plans/         # план реализации
 ```
